@@ -16,7 +16,7 @@
 {
     "compilerOptions": {
         "module": "commonjs",
-        "target": "es5",
+        "target": "es6",
         "noImplicitAny": false,
         "sourceMap": false,
         "outDir": "dist",
@@ -84,18 +84,16 @@ $ npm run tsc
 $ npm run start
 ```
 
-## 安装插件
+## 🔗 安装 koa 插件
 
 🚀 所有 koa 插件都可以在这里找到：https://github.com/koajs/koa/wiki
 
-**8 安装 body 解析插件：** `$ npm install koa-better-body -S`
+```JavaScript
+// 安装『body 解析插件』与『兼容性转换插件』
+$ npm install koa-better-body koa-convert -S
 
-**9 安装路由插件：** `$ npm install koa-better-router -S`
-
-⚠️ 由于使用的是 `koa@3.x` 的 `better` 系列插件，我们需要 `koa-convert` 这个工具。
-
-```bash
-$ npm i koa-convert -S
+// 安装『路由插件』
+$ npm install koa-better-router -S
 ```
 
 📝 修改我们的 `index.ts`
@@ -131,3 +129,132 @@ app.listen(3000, () => {
     console.log("Server Stared on http://localhost:3000")
 });
 ```
+
+## 📊 数据库 sqlite3
+
+为了简单的模拟数据库行为，我们使用最小的数据库 **sqlite3**。
+
+> 下载 sqlite3 直接到官网的 download 页面：https://www.sqlite.org/download.html
+> 
+> 注意，假如您是 win 请下载： **sqlite-tools-win32-x86-3280000.zip**
+
+每一个开发者都不应该直接操 作SQL，而是把更多的时间专注在业务上面去，所以我们需要 ORM，这里我们选择 `sequelize`。
+
+```
+// 推荐用 cnpm 安装 sqlite3
+$ cnpm i sequelize @types/sequelize sqlite3 -S
+```
+
+## 🚀 安装 sqlite studio
+
+下载地址：https://sqlitestudio.pl/index.rvt
+
+在根目录下面创建一个 `storage/db.sqlite3` 的空文件用来当做数据库。
+
+然后用 sqlite studio 打开这个文件。
+
+![](https://s2.ax1x.com/2019/06/02/V8mZUP.png)
+
+- 📝 创建 user 表
+
+```sql
+CREATE TABLE user (
+    id       INTEGER       PRIMARY KEY AUTOINCREMENT,
+    usernmae VARCHAR (255) NOT NULL
+                           UNIQUE,
+    email    VARCHAR (40)  UNIQUE
+                           NOT NULL,
+    password VARCHAR (255) NOT NULL
+);
+```
+
+- 📝 创建 todo_folder 表
+
+```sql
+CREATE TABLE todo_folder (
+    id      INTEGER PRIMARY KEY AUTOINCREMENT
+                    UNIQUE,
+    user_id INTEGER REFERENCES user (id) 
+                    NOT NULL,
+    title   TEXT    NOT NULL
+);
+```
+
+- 📝 创建 todo 表
+
+```sql
+CREATE TABLE todo (
+    id             INTEGER PRIMARY KEY AUTOINCREMENT
+                           UNIQUE,
+    todo_folder_id         REFERENCES todo_folder (id) 
+                           NOT NULL,
+    text           TEXT    NOT NULL,
+    created_at     TIME,
+    updated_at     TIME
+);
+```
+
+
+## 🚀 安装 `password-hash`
+用来处理用户密码，不存储用户的明文密码，而是存储加密后的。
+
+
+✅ 新建 `src/db.ts`，用于测试连接数据库。
+
+`$ npm i password-hash -S`
+
+```Typescript
+import { Sequelize, DataTypes, Model } from 'sequelize'
+import * as ph from 'password-hash'
+import { resolve } from 'path'
+
+const sequelize = new Sequelize('db', null, null, {
+    dialect: 'sqlite',
+    storage: resolve(__dirname, '../storage/db.sqlite3')
+})
+
+class User extends Model {
+    public id!: number;
+    public usernmae!: string;
+    public email!: string;
+    public password!: string;
+}
+
+User.init({
+    id: {
+        type: DataTypes.INTEGER,
+        primaryKey: true,
+        autoIncrement: true
+    },
+    username: {
+        type: DataTypes.STRING,
+    },
+    email: {
+        type: DataTypes.STRING
+    },
+    password: {
+        type: DataTypes.STRING
+    }
+}, {
+    sequelize,
+    timestamps: false,
+    tableName: 'user',
+})
+
+User.create({
+    username: 'yugo',
+    email: 'belovedyogurt@gmail.com',
+    password: ph.generate('123456')
+}).then(console.log)
+```
+
+✅ 先执行 `tsc`，编译成功之后再执行 `node ./dist/db.js` 。
+
+正常的话数据表会多一条数据，如图所示：
+
+![](https://s2.ax1x.com/2019/06/02/V8dY34.png)
+
+⚠️ 解决关于: TypeError: Class constructor Model cannot be invoked without 'new'
+
+> 📝 tsconfig.json 将 "target" 改为 "es6" 即可
+
